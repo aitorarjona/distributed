@@ -1,8 +1,8 @@
 distributed:
   version: 2
-  # logging:
-  #   distributed: info
-  #   distributed.client: warning
+  logging:
+    distributed: debug
+    #distributed.client: debug
   #   bokeh: error
   #   # http://stackoverflow.com/questions/21234772/python-tornado-disable-logging-to-stderr
   #   tornado: critical
@@ -264,6 +264,11 @@ distributed:
 
     websockets:
       shard: 8MiB
+
+    rabbitmq:
+      amqp_url: "amqp://guest:guest@localhost:5672/"
+      exchange: "dask"
+      shard: 128MiB
 
   diagnostics:
     nvml: True
