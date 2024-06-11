@@ -399,7 +399,7 @@ class WSListener(BaseListener):
         finally:
             if self.new_comm_server:
                 self.server = HTTPServer(web.Application(routes), **self.server_args)
-                self.server.listen(self.port)
+                self.server.listen(self.port, address=self.ip)
 
     def stop(self):
         self.server.stop()
