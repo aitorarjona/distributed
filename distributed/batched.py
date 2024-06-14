@@ -107,6 +107,7 @@ class BatchedSend:
                 # sommething like `RuntimeWarning: coroutine 'TCP.write' was never
                 # awaited`. By using the `closing` contextmanager, the `write` coroutine
                 # object is always cleaned up, even if `yield` raises `GeneratorExit`.
+                print(f"==== BatchedSend._background_send ==> {payload}")
                 with contextlib.closing(
                     self.comm.write(
                         payload, serializers=self.serializers, on_error="raise"
@@ -152,14 +153,15 @@ class BatchedSend:
 
         This completes quickly and synchronously
         """
+        print(f"==== BatchedSend.send ==== {msgs} {self.comm is not None and self.comm.closed()}")
         if self.comm is not None and self.comm.closed():
             raise CommClosedError(f"Comm {self.comm!r} already closed.")
-
         self.message_count += len(msgs)
         self.buffer.extend(msgs)
         # Avoid spurious wakeups if possible
         if self.next_deadline is None:
             self.waker.set()
+        print(f"Buffered {len(msgs)} messages. Total buffered: {len(self.buffer)}")
 
     @gen.coroutine
     def close(self, timeout=None):

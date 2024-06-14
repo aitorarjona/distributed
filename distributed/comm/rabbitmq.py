@@ -29,7 +29,7 @@ EXCLUSIVE = False
 
 
 def address_to_queue_name(address: str):
-    """Translate a "tcp-like address" address or uri (e.g. amqp://queuename:port) to a queue name, where the
+    """Translate a "tcp-like address" address/uri (e.g. amqp://queuename:port) to a queue name, where the
     host is the queue name, the port is ignored"""
     if address.startswith("amqp://"):
         address = address.split("://")[1]
@@ -76,13 +76,15 @@ class RabbitMQ(Comm):
                 raise CommClosedError()
             n_frames = msg.properties.headers["n_frames"]
         except Exception as e:
+            logger.error("Error reading message from queue %s", self._consumer_queue.name)
             raise CommClosedError(e)
 
+        print(f"{n_frames=}")
         if n_frames == 1:
             frames = [msg.body]
         else:
             frames = [(await self.buffer.get()).body for _ in range(n_frames - 1)]
-
+        print(f"{frames=}")
         msg = await from_frames(
             frames,
             deserialize=self.deserialize,
@@ -108,6 +110,7 @@ class RabbitMQ(Comm):
         )
         nbytes_frames = 0
         n_frames = len(frames)
+        print(f"{n_frames=}")
         try:
             for frame in frames:
                 if type(frame) is not bytes:
@@ -226,14 +229,16 @@ class RabbitMQConnector(Connector):
             EXCHANGE, ExchangeType.DIRECT,
         )
 
-        conn_id = "conn-" + uuid.uuid4().hex[:8]
+        listener_queue_name = address_to_queue_name(address)
+        conn_id = listener_queue_name + "-conn-" + uuid.uuid4().hex[:8]
 
         # Declare and bind the peer queue
-        listener_queue_name = address_to_queue_name(address)
         logger.debug(f"Connecting to queue {listener_queue_name}")
-        # peer_queue = await channel.declare_queue(peer_queue_name, durable=DURABLE, exclusive=EXCLUSIVE,
-        #                                          auto_delete=AUTO_DELETE)
-        # await peer_queue.bind(exchange)
+
+        # Declare and the listener queue
+        listener_queue = await channel.declare_queue(listener_queue_name, durable=DURABLE, exclusive=EXCLUSIVE,
+                                                     auto_delete=AUTO_DELETE)
+        await listener_queue.bind(exchange)
 
         # Declare and the peer's (server) queue
         server_queue = await channel.declare_queue(conn_id + "-server", durable=DURABLE, exclusive=EXCLUSIVE,

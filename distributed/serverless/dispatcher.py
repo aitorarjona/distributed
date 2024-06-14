@@ -15,6 +15,7 @@ from distributed.client import SourceCode
 from distributed.comm import Comm
 from distributed.comm.addressing import addresses_from_user_args
 from distributed.core import error_message
+from distributed.counter import Counter
 from distributed.node import ServerNode
 from distributed.protocol import deserialize
 from distributed.scheduler import ClientState, _materialize_graph, WorkerState, Scheduler
@@ -25,8 +26,9 @@ logger = logging.getLogger(__name__)
 
 async def _delay_worker_conn(scheduler, address):
     logger.debug("Starting delayed worker connection to %s", address)
-    print(address)
     comm = await connect(address)
+    logger.debug("Delayed worker connection to %s successful 🤙", address)
+
     # This will keep running until the worker is removed
     await scheduler.handle_worker(comm, address)
 
@@ -166,6 +168,8 @@ class SchedulerDispatcher(ServerNode):
             annotations: dict | None = None,
             stimulus_id: str | None = None,
     ):
+        logger.debug("--- Start update_graph ---")
+
         logger.debug("Update graph "
                      "- Client: %s "
                      "- Graph Header: %s "
@@ -254,13 +258,42 @@ class SchedulerDispatcher(ServerNode):
             t1 = time.perf_counter()
             logger.debug("Scheduler bootstrap took %.6f", t1 - t0)
 
-            # TODO Compute number of workers based on the dag
+            # TODO Setup these parameters based on the selected worker container used
             n_workers = 1
+            versions = {
+                'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
+                         'machine': 'x86_64', 'processor': 'x86_64', 'byteorder': 'little', 'LC_ALL': 'None',
+                         'LANG': 'en_US.UTF-8'},
+                'packages': {'python': '3.11.4.final.0', 'dask': '2024.4.2', 'distributed': '0+untagged.5753.g32de245',
+                             'msgpack': '1.0.8', 'cloudpickle': '3.0.0', 'tornado': '6.4', 'toolz': '0.12.1',
+                             'numpy': None, 'pandas': None, 'lz4': None}}
+            memory_limit = 2147483648  # 2GB
+            heartbeat_metrics = {'task_counts': Counter(),
+                                 'bandwidth': {'total': 100000000, 'workers': {}, 'types': {}},
+                                 'digests_total_since_heartbeat': {'tick-duration': 0.0,
+                                                                   'latency': 0.0}, 'managed_bytes': 0,
+                                 'spilled_bytes': {'memory': 0, 'disk': 0},
+                                 'transfer': {'incoming_bytes': 0, 'incoming_count': 0, 'incoming_count_total': 0,
+                                              'outgoing_bytes': 0, 'outgoing_count': 0, 'outgoing_count_total': 0},
+                                 'event_loop_interval': 0.0, 'cpu': 0.0, 'memory': 0,
+                                 'time': time.time(),
+                                 'host_net_io': {'read_bps': 0, 'write_bps': 0},
+                                 'host_disk_io': {'read_bps': 0.0, 'write_bps': 0.0}, 'num_fds': 0}
 
+            # x = {'task_counts': Counter(), 'bandwidth': {'total': 100000000, 'workers': {}, 'types': {}},
+            #      'digests_total_since_heartbeat': {'tick-duration': 0.4995689392089844,
+            #                                        'latency': 0.004403352737426758},
+            #      'managed_bytes': 0, 'spilled_bytes': {'memory': 0, 'disk': 0},
+            #      'transfer': {'incoming_bytes': 0, 'incoming_count': 0, 'incoming_count_total': 0, 'outgoing_bytes': 0,
+            #                   'outgoing_count': 0, 'outgoing_count_total': 0},
+            #      'event_loop_interval': 0.019503312952378216,
+            #      'cpu': 6.0, 'memory': 56078336, 'time': 1718271538.134402,
+            #      'host_net_io': {'read_bps': 14106.401112047884, 'write_bps': 14314.613674587337},
+            #      'host_disk_io': {'read_bps': 0.0, 'write_bps': 0.0}, 'num_fds': 13}
             # Bootstrap workers
             for i in range(n_workers):
                 name = client.replace("Client", f"Worker-{i}")
-                address = "amqp://" + ".".join([name, "dask", "serverless"]) + ":0"
+                address = "amqp://" + name + ":0"
 
                 nthreads = 1  # TODO Compute number of threads for this worker
 
@@ -268,19 +301,33 @@ class SchedulerDispatcher(ServerNode):
                     address=address,
                     status=Status.running,
                     pid=0,
-                    nthreads=nthreads,
-                    memory_limit=99999999,
                     name=name,
-                    scheduler=scheduler,
+                    nthreads=nthreads,
+                    memory_limit=memory_limit,
+                    local_directory=f"/tmp/dask-worker-space/{name}",
                     nanny=None,
-                    local_directory=None,
-                    server_id=None,
+                    server_id=name,
+                    services={},
+                    versions=versions,
+                    extra={},
+                    scheduler=scheduler,
                 )
 
-                scheduler.workers[name] = ws
+                scheduler.workers[address] = ws
                 scheduler.aliases[name] = name
                 scheduler.running.add(ws)
                 scheduler.total_nthreads += ws.nthreads
+
+                # "Fake" worker heartbeat, needed to initialize some values in WorkerState
+                scheduler.heartbeat_worker(
+                    address=address,
+                    resolve_address=False,
+                    resources=None,
+                    host_info=None,
+                    metrics=heartbeat_metrics,
+                    executing={},
+                    extensions={},
+                )
 
                 # The comm object is not ready yet, it will be created by the task
                 # _delay_worker_conn, but with BatchedSend, the scheduler will be able to
@@ -288,11 +335,15 @@ class SchedulerDispatcher(ServerNode):
                 scheduler.stream_comms[address] = BatchedSend(interval="5ms", loop=self.loop)
                 self.loop.add_callback(_delay_worker_conn, scheduler, address)
 
+                # Update idle state of the new worker
+                scheduler.check_idle_saturated(ws)
+
             logger.debug("Scheduler bootstrap for %s complete", scheduler_id)
 
             scheduler.total_nthreads_history.append((time.time(), scheduler.total_nthreads))
             # Notify scheduler that the workers are available to process tasks
             scheduler.stimulus_queue_slots_maybe_opened(stimulus_id=stimulus_id or f"update-graph-{start}")
+            await scheduler.finished()
             logger.debug("--- End update_graph ---")
         except RuntimeError as e:
             logger.error(str(e))
