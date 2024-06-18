@@ -1,14 +1,18 @@
 import json
 import logging
+import os
 
 import dask
 import tornado.ioloop
 import tornado.web
 
-from distributed import get_versions
+from distributed.versions import get_versions
 from distributed.serverless.lazy_worker import LazyWorker
 
 logger = logging.getLogger(__name__)
+
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = os.environ.get("PORT", 8080)
 
 
 class WorkerHandler(tornado.web.RequestHandler):
@@ -71,6 +75,6 @@ if __name__ == "__main__":
         (r"/worker", WorkerHandler),
         (r"/versions", WorkerMetadataHandler)
     ])
-    app.listen(address="127.0.0.1", port=8080)
-    print("Server is running on http://127.0.0.1:8080")
+    app.listen(address=HOST, port=PORT)
+    print(f"Server is running on http://{HOST}:{PORT}")
     tornado.ioloop.IOLoop.current().start()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 
 from distributed._signals import wait_for_signals
 from distributed.compatibility import asyncio_run
@@ -10,13 +11,18 @@ from distributed.serverless.dispatcher import SchedulerDispatcher
 
 logger = logging.getLogger(__name__)
 
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = os.environ.get("PORT", 8080)
+PROTOCOL = os.environ.get("PROTOCOL", "ws")
+
 
 async def run():
+    print(f"Starting dispatcher at {PROTOCOL}://{HOST}:{PORT}")
     logger.info("-" * 47)
     dispatcher = SchedulerDispatcher(
-        host="127.0.0.1",
-        port=8888,
-        protocol="ws"
+        host=HOST,
+        port=PORT,
+        protocol=PROTOCOL
     )
     logger.info("-" * 47)
 
