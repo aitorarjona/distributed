@@ -79,12 +79,11 @@ class RabbitMQ(Comm):
             logger.error("Error reading message from queue %s", self._consumer_queue.name)
             raise CommClosedError(e)
 
-        print(f"{n_frames=}")
-        if n_frames == 1:
-            frames = [msg.body]
-        else:
-            frames = [(await self.buffer.get()).body for _ in range(n_frames - 1)]
-        print(f"{frames=}")
+        frames = [msg.body]
+        if n_frames > 1:
+            print("msg {} has {} frames".format(msg.body, n_frames))
+            for _ in range(n_frames - 1):
+                frames.append((await self.buffer.get()).body)
         msg = await from_frames(
             frames,
             deserialize=self.deserialize,
@@ -110,7 +109,8 @@ class RabbitMQ(Comm):
         )
         nbytes_frames = 0
         n_frames = len(frames)
-        print(f"{n_frames=}")
+        if n_frames > 1:
+            print("msg {} has {} frames".format(msg, n_frames))
         try:
             for frame in frames:
                 if type(frame) is not bytes:

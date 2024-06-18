@@ -1368,6 +1368,7 @@ class Worker(BaseWorker, ServerNode):
     #############
 
     async def start_unsafe(self):
+        logger.debug("---------------- Worker.start_unsafe -----------------")
         await super().start_unsafe()
 
         enable_gc_diagnosis()

@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     def say_hello(name):
         print("Going to sleep...")
-        time.sleep(2)
+        time.sleep(5)
         return f"Hello {name}!"
 
     # submit a task to the scheduler
