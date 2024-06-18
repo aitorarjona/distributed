@@ -6067,6 +6067,7 @@ class Scheduler(SchedulerState, ServerNode):
         """Send messages to client and workers"""
 
         for client, msgs in client_msgs.items():
+            print(msgs)
             c = self.client_comms.get(client)
             if c is None:
                 continue

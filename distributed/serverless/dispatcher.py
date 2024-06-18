@@ -8,7 +8,7 @@ from typing import Any
 import dask
 from dask.typing import Key
 
-from distributed import Status, connect
+from distributed import Status
 from distributed import versions as version_module
 from distributed.batched import BatchedSend
 from distributed.client import SourceCode
@@ -18,25 +18,24 @@ from distributed.core import error_message
 from distributed.counter import Counter
 from distributed.node import ServerNode
 from distributed.protocol import deserialize
-from distributed.scheduler import ClientState, _materialize_graph, WorkerState
+from distributed.scheduler import ClientState, _materialize_graph
 from distributed.serverless.ephemeral_scheduler import EphemeralScheduler
 from distributed.utils import is_python_shutting_down, offload
 
 logger = logging.getLogger(__name__)
 
 
-
-
-
 class SchedulerDispatcher(ServerNode):
     default_port = 8788
+    schedulers = {}
+    client_schedulers = {}
+    client_comms = {}
+    clients = {}
 
     def __init__(self, host=None, port=None, interface=None, protocol=None):
-        self.client_comms = {}
-        self.clients = {}
-
         handlers = {
             "register-client": self.register_client,
+            "gather": self.gather,
         }
 
         stream_handlers = {
@@ -195,6 +194,9 @@ class SchedulerDispatcher(ServerNode):
                 protocol="amqp",
                 dashboard=False,
             )
+            scheduler.client_comms[client] = self.client_comms[client]
+            self.schedulers[scheduler_id] = scheduler
+            self.client_schedulers[client] = scheduler
 
             # Materialize DAG
             # We do not call Scheduler.update_graph directly because we want to have the DAG here
@@ -303,6 +305,14 @@ class SchedulerDispatcher(ServerNode):
                 )
         end = time.time()
         self.digest_metric("update-graph-duration", end - start)
+
+    async def gather(self, keys, serializers=None):
+        for scheduler in self.schedulers.values():
+            res = await scheduler.gather(keys, serializers=serializers)
+            if res["status"] == "OK":
+                return res
+            else:
+                pass
 
     # ---------------------
     # Dispatcher management
