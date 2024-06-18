@@ -872,8 +872,8 @@ class Client(SyncMethodMixin):
         self.id = (
             type(self).__name__
             + ("-" + name + "-" if name else "-")
-            # + str(uuid.uuid1(clock_seq=os.getpid()))
-            + "00000000-0000-0000-0000-000000000000"
+            + str(uuid.uuid1(clock_seq=os.getpid()))
+            # + "00000000-0000-0000-0000-000000000000"
         )
         self.generation = 0
         self.status = "newly-created"

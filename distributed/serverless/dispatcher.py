@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import logging
 import textwrap
 import time
 from typing import Any
 
 import dask
+import tornado
 from dask.typing import Key
+from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 
 from distributed import Status
 from distributed import versions as version_module
@@ -24,6 +27,30 @@ from distributed.utils import is_python_shutting_down, offload
 
 logger = logging.getLogger(__name__)
 
+WORKERS_ENDPOINT = "http://127.0.0.1:8080"
+
+
+@tornado.gen.coroutine
+def deploy_workers(http_client, payloads):
+    @tornado.gen.coroutine
+    def _deploy_worker(url, payload):
+        try:
+            print(f"POST {url} --> {payload}")
+            response = yield http_client.fetch(url, method="POST", body=json.dumps(payload))
+            raise tornado.gen.Return(response.body)
+        except Exception as e:
+            print(f"Error fetching {url}: {e}")
+            raise tornado.gen.Return(None)
+
+    url = WORKERS_ENDPOINT + "/worker"
+    fetch_futures = [_deploy_worker(url, payload) for payload in payloads]
+    responses = yield tornado.gen.multi(fetch_futures)
+    for payload, response in zip(payloads, responses):
+        if response:
+            print(f"Response {payload} --> {response}")
+        else:
+            print(f"No response from {url}")
+
 
 class SchedulerDispatcher(ServerNode):
     default_port = 8788
@@ -31,6 +58,8 @@ class SchedulerDispatcher(ServerNode):
     client_schedulers = {}
     client_comms = {}
     clients = {}
+
+    http_client = AsyncHTTPClient()
 
     def __init__(self, host=None, port=None, interface=None, protocol=None):
         handlers = {
@@ -179,11 +208,35 @@ class SchedulerDispatcher(ServerNode):
         #              client, graph_header, keys, internal_priority, submitting_task, user_priority, actors,
         #              fifo_timeout, code, annotations, stimulus_id)
         start = time.time()
-        scheduler_id = client.replace("Client", "Scheduler")
+        req_uuid = client.replace("Client-", "")
+        scheduler_id = f"Scheduler-{req_uuid}"
         logger.info("Bootstrap scheduler for %s", scheduler_id)
         cs = self.clients[client]
         try:
             t0 = time.perf_counter()
+
+            # Get versions form worker here asynchronously
+            versions_req = HTTPRequest(url=WORKERS_ENDPOINT + "/versions", method="GET")
+            versions_res_fut = self.http_client.fetch(versions_req)
+
+            # TODO Setup these parameters based on num of CPUs and worker specs
+            n_workers = 1
+            nthreads = 1
+            memory_limit = 2147483648  # 2GB
+
+            worker_payloads = []
+            for i in range(n_workers):
+                worker_id = f"Worker-{i}-{req_uuid}"
+                payload = {
+                    "name": worker_id,
+                    "scheduler_address": f"amqp://{scheduler_id}:0",
+                    "nthreads": nthreads,
+                    "memory_limit": memory_limit,
+                    "contact_address": f"amqp://{worker_id}:0"
+                }
+                worker_payloads.append(payload)
+
+            tornado.ioloop.IOLoop.current().add_callback(deploy_workers, self.http_client, worker_payloads)
 
             # Bootstrap scheduler for this DAG run
             scheduler = EphemeralScheduler(
@@ -261,18 +314,16 @@ class SchedulerDispatcher(ServerNode):
             t1 = time.perf_counter()
             logger.debug("Scheduler bootstrap took %.6f", t1 - t0)
 
-            # TODO Setup these parameters based on num of CPUs and worker specs
-            # TODO Call an external controller to actually start the workers
-            n_workers = 1
-            versions = {
-                'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
-                         'machine': 'x86_64', 'processor': 'x86_64', 'byteorder': 'little', 'LC_ALL': 'None',
-                         'LANG': 'en_US.UTF-8'},
-                'packages': {'python': '3.11.4.final.0', 'dask': '2024.4.2', 'distributed': '0+untagged.5753.g32de245',
-                             'msgpack': '1.0.8', 'cloudpickle': '3.0.0', 'tornado': '6.4', 'toolz': '0.12.1',
-                             'numpy': None, 'pandas': None, 'lz4': None}}
-            nthreads = 1
-            memory_limit = 2147483648  # 2GB
+            versions_res = await versions_res_fut
+            versions = json.loads(versions_res.body)
+
+            # versions = {
+            #     'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
+            #              'machine': 'x86_64', 'processor': 'x86_64', 'byteorder': 'little', 'LC_ALL': 'None',
+            #              'LANG': 'en_US.UTF-8'},
+            #     'packages': {'python': '3.11.4.final.0', 'dask': '2024.4.2', 'distributed': '0+untagged.5753.g32de245',
+            #                  'msgpack': '1.0.8', 'cloudpickle': '3.0.0', 'tornado': '6.4', 'toolz': '0.12.1',
+            #                  'numpy': None, 'pandas': None, 'lz4': None}}
             heartbeat_metrics = {'task_counts': Counter(),
                                  'bandwidth': {'total': 100000000, 'workers': {}, 'types': {}},
                                  'digests_total_since_heartbeat': {'tick-duration': 0.0,

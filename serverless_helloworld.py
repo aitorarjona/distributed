@@ -4,9 +4,9 @@ from distributed import Client
 
 if __name__ == "__main__":
     # create dask client
-    client = Client("ws://127.0.0.1:8788", connection_limit=1)
+    client = Client("ws://127.0.0.1:8888", connection_limit=1)
 
-    input("Press Enter to continue...")
+    # input("Press Enter to continue...")
 
     def say_hello(name):
         print("Going to sleep...")

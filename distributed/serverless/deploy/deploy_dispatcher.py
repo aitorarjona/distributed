@@ -1,24 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import atexit
-import gc
 import logging
-import os
-import re
-import sys
-import warnings
 
-
-from distributed import Scheduler
 from distributed._signals import wait_for_signals
 from distributed.compatibility import asyncio_run
 from distributed.config import get_loop_factory
-from distributed.preloading import validate_preload_argv
-from distributed.proctitle import (
-    enable_proctitle_on_children,
-    enable_proctitle_on_current,
-)
 from distributed.serverless.dispatcher import SchedulerDispatcher
 
 logger = logging.getLogger(__name__)
@@ -28,6 +15,7 @@ async def run():
     logger.info("-" * 47)
     dispatcher = SchedulerDispatcher(
         host="127.0.0.1",
+        port=8888,
         protocol="ws"
     )
     logger.info("-" * 47)
@@ -63,4 +51,3 @@ if __name__ == "__main__":
         asyncio_run(run(), loop_factory=get_loop_factory())
     finally:
         logger.info("End scheduler")
-
