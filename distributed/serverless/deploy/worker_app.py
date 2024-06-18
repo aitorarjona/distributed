@@ -5,6 +5,7 @@ import dask
 import tornado.ioloop
 import tornado.web
 
+from distributed import get_versions
 from distributed.serverless.lazy_worker import LazyWorker
 
 logger = logging.getLogger(__name__)
@@ -56,15 +57,11 @@ class WorkerHandler(tornado.web.RequestHandler):
 
 
 class WorkerMetadataHandler(tornado.web.RequestHandler):
-    versions = {
-        'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
-                 'machine': 'x86_64', 'processor': 'x86_64', 'byteorder': 'little', 'LC_ALL': 'None',
-                 'LANG': 'en_US.UTF-8'},
-        'packages': {'python': '3.11.4.final.0', 'dask': '2024.4.2', 'distributed': '0+untagged.5753.g32de245',
-                     'msgpack': '1.0.8', 'cloudpickle': '3.0.0', 'tornado': '6.4', 'toolz': '0.12.1',
-                     'numpy': None, 'pandas': None, 'lz4': None}}
+    versions = None
 
     async def get(self):
+        if self.versions is None:
+            self.versions = get_versions()
         print(self.versions)
         self.write(self.versions)
 
