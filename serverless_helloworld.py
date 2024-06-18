@@ -14,7 +14,7 @@ if __name__ == "__main__":
         return f"Hello {name}!"
 
     # submit a task to the scheduler
-    future = client.submit(say_hello, ("world",))
+    future = client.submit(say_hello, "world")
     res = future.result()
     print(res)
 

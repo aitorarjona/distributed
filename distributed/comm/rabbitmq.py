@@ -81,7 +81,6 @@ class RabbitMQ(Comm):
 
         frames = [msg.body]
         if n_frames > 1:
-            print("msg {} has {} frames".format(msg.body, n_frames))
             for _ in range(n_frames - 1):
                 frames.append((await self.buffer.get()).body)
         msg = await from_frames(
@@ -90,11 +89,11 @@ class RabbitMQ(Comm):
             deserializers=deserializers,
             allow_offload=self.allow_offload,
         )
-        logger.debug("Received message from queue %s --> %s", self._consumer_queue.name, str(msg))
+        logger.debug("Received message from queue %s", self._consumer_queue.name)
         return msg
 
     async def write(self, msg, serializers=None, on_error=None):
-        logger.debug("Sending message to queue %s --> %s", self._peer_routing_key, str(msg))
+        # logger.debug("Sending message to queue %s --> %s", self._peer_routing_key, str(msg))
         frames = await to_frames(
             msg,
             allow_offload=self.allow_offload,
@@ -109,8 +108,6 @@ class RabbitMQ(Comm):
         )
         nbytes_frames = 0
         n_frames = len(frames)
-        if n_frames > 1:
-            print("msg {} has {} frames".format(msg, n_frames))
         try:
             for frame in frames:
                 if type(frame) is not bytes:
@@ -125,11 +122,11 @@ class RabbitMQ(Comm):
         return nbytes_frames
 
     async def close(self):
-        logger.debug("------- CLOSE %s -------", self._consumer_queue.name)
+        logger.debug("Closing Comm %s", self._consumer_queue.name)
         self._closed = True
 
     def abort(self):
-        logger.debug("------- ABORT %s -------", self._consumer_queue.name)
+        logger.debug("Abort Comm %s", self._consumer_queue.name)
 
     def closed(self):
         return self._closed
@@ -144,8 +141,6 @@ class RabbitMQ(Comm):
 
     async def _on_message(self, message: AbstractIncomingMessage):
         async with message.process():
-            # print(f"{message.body=!r} {message.properties.headers=!r} "
-            #       f"{message.routing_key=!r} {message.properties.reply_to=!r}")
             await self.buffer.put(message)
 
 
@@ -198,7 +193,7 @@ class RabbitMQListener(BaseListener):
 
     async def _on_message(self, message: AbstractIncomingMessage):
         async with message.process():
-            logger.debug(f"Received new connection --> {message.reply_to}")
+            logger.debug(f"Received new listener connection request --> {message.reply_to}")
             conn_id = message.reply_to
             # Declare this server queue for the peer (client) to send messages to this server
             server_queue = await self._channel.declare_queue(conn_id + "-server", durable=DURABLE,

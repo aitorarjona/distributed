@@ -1017,7 +1017,6 @@ class Server:
     ) -> None:
         extra = extra or {}
         logger.info("Starting established connection to %s", comm.peer_address)
-        print(extra)
         closed = False
         try:
             while not closed:

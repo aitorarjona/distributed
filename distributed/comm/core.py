@@ -265,7 +265,6 @@ class Listener(ABC):
 
         await comm.write(local_info)
         handshake = await comm.read()
-        print(handshake)
 
         comm.remote_info = handshake
         comm.remote_info["address"] = comm.peer_address
@@ -374,10 +373,8 @@ async def connect(
         **comm.handshake_info(),
         **(handshake_overrides or {}),
     }
-    # print(local_info)
     await comm.write(local_info)
     handshake = await comm.read()
-    # print(handshake)
 
     comm.remote_info = handshake
     comm.remote_info["address"] = comm.peer_address
