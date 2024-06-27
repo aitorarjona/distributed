@@ -490,7 +490,7 @@ class Worker(BaseWorker, ServerNode):
         preload_argv: list[str] | list[list[str]] | None = None,
         security: Security | dict[str, Any] | None = None,
         contact_address: str | None = None,
-        heartbeat_interval: Any = "1s",
+        heartbeat_interval: Any = "25s",
         extensions: dict[str, type] | None = None,
         metrics: Mapping[str, Callable[[Worker], Any]] = DEFAULT_METRICS,
         startup_information: Mapping[

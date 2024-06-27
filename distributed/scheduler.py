@@ -8856,15 +8856,16 @@ def validate_state(
 
 def heartbeat_interval(n: int) -> float:
     """Interval in seconds that we desire heartbeats based on number of workers"""
-    if n <= 10:
-        return 0.5
-    elif n < 50:
-        return 1
-    elif n < 200:
-        return 2
-    else:
-        # No more than 200 heartbeats a second scaled by workers
-        return n / 200 + 1
+    return 25
+    # if n <= 10:
+    #     return 0.5
+    # elif n < 50:
+    #     return 1
+    # elif n < 200:
+    #     return 2
+    # else:
+    #     # No more than 200 heartbeats a second scaled by workers
+    #     return n / 200 + 1
 
 
 def _task_slots_available(ws: WorkerState, saturation_factor: float) -> int:

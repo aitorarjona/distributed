@@ -31,21 +31,20 @@ logger = logging.getLogger(__name__)
 WORKERS_ENDPOINT = os.environ.get("WORKERS_ENDPOINT", "http://127.0.0.1:8080")
 
 
-@tornado.gen.coroutine
-def deploy_workers(http_client, payloads):
-    @tornado.gen.coroutine
-    def _deploy_worker(url, payload):
+async def deploy_workers(http_client, payloads):
+    async def _deploy_worker(url, payload):
         try:
             print(f"POST {url} --> {payload}")
-            response = yield http_client.fetch(url, method="POST", body=json.dumps(payload))
-            raise tornado.gen.Return(response.body)
-        except Exception as e:
+            response = await http_client.fetch(url, method="POST", body=json.dumps(payload))
+            return json.loads(response.body)
+        except tornado.httpclient.HTTPClientError as e:
             print(f"Error fetching {url}: {e}")
-            raise tornado.gen.Return(None)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding response from {url}: {e}")
 
     url = WORKERS_ENDPOINT + "/worker"
     fetch_futures = [_deploy_worker(url, payload) for payload in payloads]
-    responses = yield tornado.gen.multi(fetch_futures)
+    responses = await tornado.gen.multi(fetch_futures)
     for payload, response in zip(payloads, responses):
         if response:
             print(f"Response {payload} --> {response}")
@@ -60,6 +59,9 @@ class SchedulerDispatcher(ServerNode):
     client_comms = {}
     clients = {}
 
+    AsyncHTTPClient.configure("tornado.simple_httpclient.SimpleAsyncHTTPClient",
+                              max_clients=1000,
+                              defaults={"connect_timeout": 0, "request_timeout": 0})
     http_client = AsyncHTTPClient()
 
     def __init__(self, host=None, port=None, interface=None, protocol=None):

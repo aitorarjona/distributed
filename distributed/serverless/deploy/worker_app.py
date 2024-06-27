@@ -35,7 +35,7 @@ class WorkerHandler(tornado.web.RequestHandler):
                 nthreads=data["nthreads"],
                 name=data["name"],
                 contact_address=data["contact_address"],
-                heartbeat_interval="5s",
+                heartbeat_interval="25s",
                 dashboard=False,
                 # host="127.0.0.1",
                 # port=8989,

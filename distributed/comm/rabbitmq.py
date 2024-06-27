@@ -89,7 +89,7 @@ class RabbitMQ(Comm):
             deserializers=deserializers,
             allow_offload=self.allow_offload,
         )
-        logger.debug("Received message from queue %s", self._consumer_queue.name)
+        # logger.debug("Received message from queue %s", self._consumer_queue.name)
         return msg
 
     async def write(self, msg, serializers=None, on_error=None):
@@ -118,7 +118,7 @@ class RabbitMQ(Comm):
         except Exception as e:
             raise CommClosedError(e)
 
-        logger.debug("Sent %d messages to %s", len(frames), self._peer_routing_key)
+        # logger.debug("Sent %d messages to %s", len(frames), self._peer_routing_key)
         return nbytes_frames
 
     async def close(self):
@@ -163,7 +163,7 @@ class RabbitMQListener(BaseListener):
     async def start(self):
         logger.debug(f"Starting RabbitMQ listener on queue {self._queue_name}")
         amqp_url = dask.config.get("distributed.comm.rabbitmq.amqp_url")
-        logger.debug("Connecting to RabbitMQ server on %s", amqp_url)
+        # logger.debug("Connecting to RabbitMQ server on %s", amqp_url)
         self._connection = await aio_pika.connect(amqp_url)
         self._channel = await self._connection.channel()
         await self._channel.set_qos(prefetch_count=10)
@@ -217,7 +217,7 @@ class RabbitMQListener(BaseListener):
 class RabbitMQConnector(Connector):
     async def connect(self, address, deserialize=True, **connection_args):
         amqp_url = dask.config.get("distributed.comm.rabbitmq.amqp_url")
-        logger.debug("Connecting to RabbitMQ server on %s", amqp_url)
+        # logger.debug("Connecting to RabbitMQ server on %s", amqp_url)
         connection = await aio_pika.connect(amqp_url)
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=10)
