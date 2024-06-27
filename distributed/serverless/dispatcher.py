@@ -223,7 +223,7 @@ class SchedulerDispatcher(ServerNode):
             versions_res_fut = self.http_client.fetch(versions_req)
 
             # TODO Setup these parameters based on num of CPUs and worker specs
-            nworkers = int(os.environ.get("N_WORKERS", 1))
+            nworkers = int(os.environ.get("N_WORKERS", 20))
             nthreads = int(os.environ.get("N_THREADS", 1))
             memory_limit = int(os.environ.get("MEMORY_LIMIT", 2147483648))  # 2GB
             logger.info("Going to deploy %d workers with %d threads and %d memory limit",

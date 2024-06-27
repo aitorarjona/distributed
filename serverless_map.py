@@ -3,7 +3,7 @@ import time
 from distributed import Client
 import dask.bag as db
 
-MAP_SIZE = 3
+MAP_SIZE = 20
 
 
 def sleepy(i):

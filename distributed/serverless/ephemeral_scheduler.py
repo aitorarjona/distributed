@@ -81,7 +81,7 @@ class EphemeralScheduler(Scheduler):
 
         self.total_nthreads_history.append((time.time(), self.total_nthreads))
         # Notify scheduler that the workers are available to process tasks
-        self.stimulus_queue_slots_maybe_opened(stimulus_id=f"bootstrap-workers-{start}")
+        # self.stimulus_queue_slots_maybe_opened(stimulus_id=f"bootstrap-workers-{start}")
 
     async def _delay_worker_conn(self, address):
         logger.debug("Starting delayed worker connection to %s", address)
