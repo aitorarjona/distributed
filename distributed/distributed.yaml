@@ -10,7 +10,7 @@ distributed:
 
   scheduler:
     allowed-failures: 3     # number of retries before a task is considered bad
-    bandwidth: 100000000    # 100 MB/s estimated worker-worker bandwidth
+    bandwidth: 10000000000
     blocked-handlers: []
     contact-address: null
     default-data-size: 1kiB
@@ -19,7 +19,7 @@ distributed:
     events-cleanup-delay: 1h
     idle-timeout: null       # Shut down after this duration, like "1h" or "30 minutes"
     no-workers-timeout: null # Shut down if there are tasks but no workers to process them
-    work-stealing: True     # workers should steal tasks from each other
+    work-stealing: False     # workers should steal tasks from each other
     work-stealing-interval: 100ms  # Callback time for work stealing
     worker-saturation: 1.1  # Send this fraction of nthreads root tasks to workers
     worker-ttl: "5 minutes" # like '60s'. Time to live for workers.  They must heartbeat faster than this
@@ -260,7 +260,6 @@ distributed:
       client:
         key: null
         cert: null
-
 
     websockets:
       shard: 8MiB

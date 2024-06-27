@@ -163,6 +163,7 @@ class RabbitMQListener(BaseListener):
     async def start(self):
         logger.debug(f"Starting RabbitMQ listener on queue {self._queue_name}")
         amqp_url = dask.config.get("distributed.comm.rabbitmq.amqp_url")
+        logger.debug("Connecting to RabbitMQ server on %s", amqp_url)
         self._connection = await aio_pika.connect(amqp_url)
         self._channel = await self._connection.channel()
         await self._channel.set_qos(prefetch_count=10)
@@ -216,6 +217,7 @@ class RabbitMQListener(BaseListener):
 class RabbitMQConnector(Connector):
     async def connect(self, address, deserialize=True, **connection_args):
         amqp_url = dask.config.get("distributed.comm.rabbitmq.amqp_url")
+        logger.debug("Connecting to RabbitMQ server on %s", amqp_url)
         connection = await aio_pika.connect(amqp_url)
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=10)

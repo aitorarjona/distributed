@@ -12,7 +12,7 @@ from distributed.serverless.dispatcher import SchedulerDispatcher
 logger = logging.getLogger(__name__)
 
 HOST = os.environ.get("HOST", "127.0.0.1")
-PORT = os.environ.get("PORT", 8080)
+PORT = os.environ.get("PORT", 8888)
 PROTOCOL = os.environ.get("PROTOCOL", "ws")
 
 

@@ -28,7 +28,7 @@ class EphemeralScheduler(Scheduler):
         self.client_comms[client] = client_comm
         self.id = client.client_key.replace("Client", "Scheduler")
 
-    async def bootstrap_workers(self, n_workers, nthreads, memory_limit, versions, metrics):
+    def bootstrap_workers(self, n_workers, nthreads, memory_limit, versions, metrics):
         start = time.time()
 
         for i in range(n_workers):

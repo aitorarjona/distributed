@@ -4,8 +4,9 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-#ENV HOST 127.0.0.1
-#ENV PORT 8080
+ENV HOST 127.0.0.1
+ENV PORT 8080
+ENV PROTOCOL ws
 
 EXPOSE 8080
 
@@ -16,4 +17,4 @@ RUN pip install -e .
 RUN pip install --no-cache-dir \
     aio-pika==9.4.1
 
-ENTRYPOINT ["python", "-m", "distributed.serverless.deploy.worker_app"]
+COPY serverless_helloworld.py /app/

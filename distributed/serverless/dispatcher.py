@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import textwrap
 import time
 from typing import Any
@@ -27,7 +28,7 @@ from distributed.utils import is_python_shutting_down, offload
 
 logger = logging.getLogger(__name__)
 
-WORKERS_ENDPOINT = "http://127.0.0.1:8080"
+WORKERS_ENDPOINT = os.environ.get("WORKERS_ENDPOINT", "http://127.0.0.1:8080")
 
 
 @tornado.gen.coroutine
@@ -220,12 +221,14 @@ class SchedulerDispatcher(ServerNode):
             versions_res_fut = self.http_client.fetch(versions_req)
 
             # TODO Setup these parameters based on num of CPUs and worker specs
-            n_workers = 1
-            nthreads = 1
-            memory_limit = 2147483648  # 2GB
+            nworkers = int(os.environ.get("N_WORKERS", 1))
+            nthreads = int(os.environ.get("N_THREADS", 1))
+            memory_limit = int(os.environ.get("MEMORY_LIMIT", 2147483648))  # 2GB
+            logger.info("Going to deploy %d workers with %d threads and %d memory limit",
+                        nworkers, nthreads, memory_limit)
 
             worker_payloads = []
-            for i in range(n_workers):
+            for i in range(nworkers):
                 worker_id = f"Worker-{i}-{req_uuid}"
                 payload = {
                     "name": worker_id,
@@ -250,6 +253,7 @@ class SchedulerDispatcher(ServerNode):
             scheduler.client_comms[client] = self.client_comms[client]
             self.schedulers[scheduler_id] = scheduler
             self.client_schedulers[client] = scheduler
+            await scheduler
 
             # Materialize DAG
             # We do not call Scheduler.update_graph directly because we want to have the DAG here
@@ -289,33 +293,9 @@ class SchedulerDispatcher(ServerNode):
                     dask.order.order, dsk=dsk, dependencies=stripped_deps
                 )
 
-            # TODO Calculate the total number of CPUs needed for DAG (dsk)
-            cpu = 1
-
-            # Enqueue tasks to scheduler
-            scheduler._create_taskstate_from_graph(
-                dsk=dsk,
-                client=client,
-                dependencies=dependencies,
-                keys=set(keys),
-                ordered=internal_priority or {},
-                submitting_task=submitting_task,
-                user_priority=user_priority,
-                actors=actors,
-                fifo_timeout=fifo_timeout,
-                code=code,
-                annotations_by_type=annotations_by_type,
-                # FIXME: This is just used to attach to Computation
-                # objects. This should be removed
-                global_annotations=annotations,
-                start=start,
-                stimulus_id=stimulus_id or f"update-graph-{start}",
-            )
-            t1 = time.perf_counter()
-            logger.debug("Scheduler bootstrap took %.6f", t1 - t0)
-
             versions_res = await versions_res_fut
             versions = json.loads(versions_res.body)
+            logger.info("Versions: %s", versions)
 
             # versions = {
             #     'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
@@ -336,8 +316,29 @@ class SchedulerDispatcher(ServerNode):
                                  'host_net_io': {'read_bps': 0, 'write_bps': 0},
                                  'host_disk_io': {'read_bps': 0.0, 'write_bps': 0.0}, 'num_fds': 0}
 
-            await scheduler.bootstrap_workers(n_workers, nthreads, memory_limit, versions, heartbeat_metrics)
-            await scheduler
+            # Add WorkerState to scheduler
+            scheduler.bootstrap_workers(nworkers, nthreads, memory_limit, versions, heartbeat_metrics)
+
+            # Enqueue tasks to scheduler
+            scheduler._create_taskstate_from_graph(
+                dsk=dsk,
+                client=client,
+                dependencies=dependencies,
+                keys=set(keys),
+                ordered=internal_priority or {},
+                submitting_task=submitting_task,
+                user_priority=user_priority,
+                actors=actors,
+                fifo_timeout=fifo_timeout,
+                code=code,
+                annotations_by_type=annotations_by_type,
+                # FIXME: This is just used to attach to Computation
+                # objects. This should be removed
+                global_annotations=annotations,
+                start=start,
+                stimulus_id=stimulus_id or f"update-graph-{start}",
+            )
+
             await scheduler.finished()
         except RuntimeError as e:
             logger.error(str(e))
