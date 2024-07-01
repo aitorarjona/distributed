@@ -2156,6 +2156,7 @@ class SchedulerState:
             returns None, in which case the task should be transitioned to
             ``no-worker``.
         """
+        logger.debug("Deciding worker for rootish task %s", ts.key)
         if self.validate:
             # See root-ish-ness note below in `decide_worker_rootish_queuing_enabled`
             assert math.isinf(self.WORKER_SATURATION)
@@ -2191,6 +2192,7 @@ class SchedulerState:
             assert self.workers.get(ws.address) is ws
             assert ws in self.running, (ws, self.running)
 
+        logger.debug("Assigning rootish task %s to %s (queuing disabled)", ts.key, ws.name)
         return ws
 
     def decide_worker_rootish_queuing_enabled(self) -> WorkerState | None:
@@ -2243,6 +2245,7 @@ class SchedulerState:
             )
             assert ws in self.running, (ws, self.running)
 
+        logger.debug("Assigning rootish task to %s (queuing enabled)", ws.name)
         return ws
 
     def decide_worker_non_rootish(self, ts: TaskState) -> WorkerState | None:
@@ -2309,6 +2312,7 @@ class SchedulerState:
             assert self.workers.get(ws.address) is ws
             assert ws in self.running, (ws, self.running)
 
+        logger.debug("Assigning %s to %s", ts.key, ws.name)
         return ws
 
     def _transition_waiting_processing(self, key: Key, stimulus_id: str) -> RecsMsgs:

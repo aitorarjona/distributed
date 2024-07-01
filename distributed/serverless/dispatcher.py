@@ -219,11 +219,11 @@ class SchedulerDispatcher(ServerNode):
             t0 = time.perf_counter()
 
             # Get versions form worker here asynchronously
-            versions_req = HTTPRequest(url=WORKERS_ENDPOINT + "/versions", method="GET")
-            versions_res_fut = self.http_client.fetch(versions_req)
+            # versions_req = HTTPRequest(url=WORKERS_ENDPOINT + "/versions", method="GET")
+            # versions_res_fut = self.http_client.fetch(versions_req)
 
             # TODO Setup these parameters based on num of CPUs and worker specs
-            nworkers = int(os.environ.get("N_WORKERS", 20))
+            nworkers = int(os.environ.get("N_WORKERS", 160))
             nthreads = int(os.environ.get("N_THREADS", 1))
             memory_limit = int(os.environ.get("MEMORY_LIMIT", 2147483648))  # 2GB
             logger.info("Going to deploy %d workers with %d threads and %d memory limit",
@@ -241,7 +241,7 @@ class SchedulerDispatcher(ServerNode):
                 }
                 worker_payloads.append(payload)
 
-            tornado.ioloop.IOLoop.current().add_callback(deploy_workers, self.http_client, worker_payloads)
+            # tornado.ioloop.IOLoop.current().add_callback(deploy_workers, self.http_client, worker_payloads)
 
             # Bootstrap scheduler for this DAG run
             scheduler = EphemeralScheduler(
@@ -295,17 +295,17 @@ class SchedulerDispatcher(ServerNode):
                     dask.order.order, dsk=dsk, dependencies=stripped_deps
                 )
 
-            versions_res = await versions_res_fut
-            versions = json.loads(versions_res.body)
-            logger.info("Versions: %s", versions)
+            # versions_res = await versions_res_fut
+            # versions = json.loads(versions_res.body)
+            # logger.info("Versions: %s", versions)
 
-            # versions = {
-            #     'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
-            #              'machine': 'x86_64', 'processor': 'x86_64', 'byteorder': 'little', 'LC_ALL': 'None',
-            #              'LANG': 'en_US.UTF-8'},
-            #     'packages': {'python': '3.11.4.final.0', 'dask': '2024.4.2', 'distributed': '0+untagged.5753.g32de245',
-            #                  'msgpack': '1.0.8', 'cloudpickle': '3.0.0', 'tornado': '6.4', 'toolz': '0.12.1',
-            #                  'numpy': None, 'pandas': None, 'lz4': None}}
+            versions = {
+                'host': {'python': '3.11.4.final.0', 'python-bits': 64, 'OS': 'Linux', 'OS-release': '6.2.0-39-generic',
+                         'machine': 'x86_64', 'processor': 'x86_64', 'byteorder': 'little', 'LC_ALL': 'None',
+                         'LANG': 'en_US.UTF-8'},
+                'packages': {'python': '3.11.4.final.0', 'dask': '2024.4.2', 'distributed': '0+untagged.5753.g32de245',
+                             'msgpack': '1.0.8', 'cloudpickle': '3.0.0', 'tornado': '6.4', 'toolz': '0.12.1',
+                             'numpy': None, 'pandas': None, 'lz4': None}}
             heartbeat_metrics = {'task_counts': Counter(),
                                  'bandwidth': {'total': 100000000, 'workers': {}, 'types': {}},
                                  'digests_total_since_heartbeat': {'tick-duration': 0.0,
@@ -319,7 +319,7 @@ class SchedulerDispatcher(ServerNode):
                                  'host_disk_io': {'read_bps': 0.0, 'write_bps': 0.0}, 'num_fds': 0}
 
             # Add WorkerState to scheduler
-            scheduler.bootstrap_workers(nworkers, nthreads, memory_limit, versions, heartbeat_metrics)
+            # scheduler.bootstrap_workers(nworkers, nthreads, memory_limit, versions, heartbeat_metrics)
 
             # Enqueue tasks to scheduler
             scheduler._create_taskstate_from_graph(
@@ -340,6 +340,9 @@ class SchedulerDispatcher(ServerNode):
                 start=start,
                 stimulus_id=stimulus_id or f"update-graph-{start}",
             )
+
+            # Add WorkerState to scheduler
+            scheduler.bootstrap_workers(nworkers, nthreads, memory_limit, versions, heartbeat_metrics)
 
             await scheduler.finished()
         except RuntimeError as e:

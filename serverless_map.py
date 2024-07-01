@@ -3,13 +3,13 @@ import time
 from distributed import Client
 import dask.bag as db
 
-MAP_SIZE = 20
+MAP_SIZE = 160
 
 
 def sleepy(i):
     t0 = time.time()
     print("Going to sleep...")
-    time.sleep(3)
+    time.sleep(10)
     t1 = time.time()
     return (i, t0, t1)
 
