@@ -21,7 +21,7 @@ distributed:
     no-workers-timeout: null # Shut down if there are tasks but no workers to process them
     work-stealing: False     # workers should steal tasks from each other
     work-stealing-interval: 100ms  # Callback time for work stealing
-    worker-saturation: 1.0  # Send this fraction of nthreads root tasks to workers
+    worker-saturation: 1.1  # Send this fraction of nthreads root tasks to workers
     worker-ttl: "5 minutes" # like '60s'. Time to live for workers.  They must heartbeat faster than this
     preload: []             # Run custom modules with Scheduler
     preload-argv: []        # See https://docs.dask.org/en/latest/how-to/customize-initialization.html
@@ -196,9 +196,9 @@ distributed:
       OPENBLAS_NUM_THREADS: 1
 
   client:
-    heartbeat: 99999w  # Interval between client heartbeats
+    heartbeat: 30s  # Interval between client heartbeats
     scheduler-info-interval: 2s  # Interval between scheduler-info updates
-    security-loader: null  # A callable to load security credentials if none are provided explicitl
+    security-loader: null  # A callable to load security credentials if none are provided explicitly
     preload: []             # Run custom modules with Client
     preload-argv: []        # See https://docs.dask.org/en/latest/how-to/customize-initialization.html
 
@@ -268,6 +268,10 @@ distributed:
       amqp_url: "amqp://guest:guest@localhost:5672/"
       exchange: "dask"
       shard: 128MiB
+
+    redis:
+      url: "redis://localhost:6379"
+      shard: 512MiB
 
   diagnostics:
     nvml: True
